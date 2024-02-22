@@ -87,7 +87,6 @@ Fetching all meets that occurred in the state of VA from 2012 to 2023
 	Found 192 meets from 2023
 Found 1620 meets run in your state. Searching through them for your team with ID(s) ['5721']...
 Finished searching through 0% of meets
-Finished searching through 0% of meets
 Finished searching through 10% of meets
 Finished searching through 20% of meets
 Finished searching through 30% of meets
