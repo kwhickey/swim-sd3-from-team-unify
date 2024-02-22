@@ -9,9 +9,12 @@ import argparse
 import datetime
 import time
 import pprint as pp
+import concurrent.futures
+
 from typing import List, Dict, Tuple, Union
 from statistics import mode, StatisticsError
 from functools import wraps
+from math import ceil
 
 _DEFAULT_STATE = "VA"
 _SEARCH_URL_TEMPLATE = (
@@ -55,8 +58,10 @@ def infer_team_id(meets: List[Dict]):
 def fetch_meets(
     team_name: str = "",
     state: str = _DEFAULT_STATE,
-    years: List[int] = [datetime.date.today().year],
+    years: List[int] = None,
 ):
+    if years is None:
+        years = [datetime.date.today().year]
     all_meets = []
     for year in years:
         print(f"\tFetching meets for {year}")
@@ -77,35 +82,58 @@ def fetch_meets(
     return all_meets
 
 
-def filter_meets_by_team_ids(team_ids: List[int]):
+def filter_meets_by_team_ids(meets: List[Dict], team_ids: List[int]):
     """Filter out meets that do not include the given team IDs"""
     empty_meets = []
     not_our_team = []
-    meet_count = len(all_state_meets)
-    progress_updates = 0
+    meet_count = len(meets)
     print(f"Found {meet_count} meets run in your state. Searching through them for your team with ID(s) {team_ids}...")
-    for i, meet in enumerate(all_state_meets):
-        # Update progress
-        finished = 100 * (i / meet_count)
-        if divmod(finished, 10) == (progress_updates, 0):
-            progress_updates += 1
-            print(f"Finished searching through {int(finished)}% of meets")
 
+    def search_meet(meet):
         meet_id = meet["id"]
         meet_teams_url = _MEET_TEAMS_URL_TEMPLATE.format(meet_id=meet_id)
-        teams = get_json_from_url_with_retry(meet_teams_url)
-        if not teams:
-            empty_meets.append(meet_id)
-            continue
-        if not [team_id for team_id in team_ids if team_id in [t["teamID"] for t in teams]]:
-            not_our_team.append(meet_id)
+        teams_json = get_json_from_url_with_retry(meet_teams_url)
+        if not teams_json:
+            return meet_id, False
+        teams_in_meet = [t["teamID"] for t in teams_json]
+        if not any(int(our_team) in teams_in_meet for our_team in team_ids):
+            return False, meet_id
+        return False, False
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        searches = {executor.submit(search_meet, m): (i, m) for i, m in enumerate(meets)}
+        finished = 0
+        progress_updates = 0
+        for search in concurrent.futures.as_completed(searches):
+            (i, meet_to_search) = searches[search]
+
+            # Update progress
+            finished = ceil(100 * (i / meet_count))
+            if divmod(finished, 10) == (progress_updates, 0):
+                progress_updates += 1
+                print(f"Finished searching through {finished}% of meets")
+
+            # Check results to decide if this is a meet we keep
+            empty_meet, not_us = search.result()
+            if empty_meet:
+                empty_meets.append(empty_meet)
+            if not_us:
+                not_our_team.append(not_us)
+
+
+    # for i, meet_to_search in enumerate(meets):
+    #     # Update progress
+    #     finished = 100 * (i / meet_count)
+    #     if divmod(finished, 10) == (progress_updates, 0):
+    #         progress_updates += 1
+    #         print(f"Finished searching through {int(finished)}% of meets")
 
     to_remove = empty_meets + not_our_team
     print(f"Filtering out {len(to_remove)} of {meet_count} meets.")
     print(f"\t{len(empty_meets)} meets are empty.")
     print(f"\t{len(not_our_team)} meets do not contain your team(s) ({team_ids}).")
-    participated_meets = [m for m in all_state_meets if m["id"] not in to_remove]
-    return participated_meets
+    our_meets = [m for m in meets if m["id"] not in to_remove]
+    return our_meets
 
 
 def retryable(
@@ -118,7 +146,7 @@ def retryable(
     """Decorator used to retry decorated function with exponential backoff.
 
     Args:
-        exception_to_check  Union[Exception, Tuple[Exception]]): the exception to check. may be a tuple of
+        exception_to_check: (Union[Exception, Tuple[Exception]]): the exception to check. may be a tuple of
             exceptions to check
         tries (int): number of times to try (not retry) before giving up
         pause_before_try (float): how long to pause in seconds before ANY and EVERY try
@@ -128,7 +156,6 @@ def retryable(
     """
 
     def decorator(fn):
-
         @wraps(fn)
         def retry(*args, **kwargs):
             this_try = 1
@@ -180,19 +207,7 @@ def get_json_from_url_with_retry(url: str):
         return json.loads(response.read())
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        prog="TouchPad Live Meet Fetcher",
-        description="Script to use the TouchPad Live REST API endpoints to collect all TouchPad Live meets for your team",
-        epilog="",
-    )
-
-    team_args = parser.add_mutually_exclusive_group(required=True)
-    team_args.add_argument("-t", "--team")
-    team_args.add_argument("-i", "--team-ids", nargs="+")
-    parser.add_argument("-y", "--year", required=False)
-    parser.add_argument("-s", "--state", default=_DEFAULT_STATE)
-
+def main(parser: argparse.ArgumentParser):
     # A single meet with ID=1: https://www.touchpadlive.com/rest/touchpadlive/meets/1
 
     # Search for Meets: https://www.touchpadlive.com/rest/touchpadlive/meets?offset=0&state=VA&year=2023
@@ -211,10 +226,26 @@ if __name__ == "__main__":
     print(f"Fetching all meets that occurred in the state of {state} from {min(years)} to {max(years)}")
     all_state_meets = fetch_meets(years=years)
 
-    participated_meets = filter_meets_by_team_ids(team_ids)
+    participated_meets = filter_meets_by_team_ids(all_state_meets, team_ids)
     for pm in participated_meets:
         pm["url"] = f"http://www.touchpadlive.com/{pm['id']}"
     print(f"Found {len(participated_meets)} meets your team participated in:")
     pp.pprint(participated_meets)
     with open(f"{'_'.join([str(tid) for tid in team_ids])}_meets.json", "w") as meets_file:
         json.dump(participated_meets, meets_file)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        prog="TouchPad Live Meet Fetcher",
+        description="Script to use the TouchPad Live REST API endpoints to collect all TouchPad Live meets for your team",
+        epilog="",
+    )
+
+    team_args = parser.add_mutually_exclusive_group(required=True)
+    team_args.add_argument("-t", "--team")
+    team_args.add_argument("-i", "--team-ids", nargs="+")
+    parser.add_argument("-y", "--year", required=False)
+    parser.add_argument("-s", "--state", default=_DEFAULT_STATE)
+
+    main(parser)
