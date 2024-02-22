@@ -36,8 +36,9 @@ Take the generated `.sd3` file and import it into a SwimTopia meet.
 
 ## `fetch_touchpad_live_meets.py`
 
-_Script to convert, read, or write Swimming Data Interchange Files (SDIF, .sd3) from a 
-Team Unify and/or TouchPad source._
+_**Script to pull meet info for a team or set of teams from TouchPad Live via their REST API.**_
+
+Can be expanded to get meet entry and result details, however results do not have the USA Swimming Number for swimmers, so not readily useful for building an SDIF .sd3 results file.
 
 This script can be used to import swim meet results from Team Unify to SwimTopia.
 
