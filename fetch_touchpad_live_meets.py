@@ -120,14 +120,6 @@ def filter_meets_by_team_ids(meets: List[Dict], team_ids: List[int]):
             if not_us:
                 not_our_team.append(not_us)
 
-
-    # for i, meet_to_search in enumerate(meets):
-    #     # Update progress
-    #     finished = 100 * (i / meet_count)
-    #     if divmod(finished, 10) == (progress_updates, 0):
-    #         progress_updates += 1
-    #         print(f"Finished searching through {int(finished)}% of meets")
-
     to_remove = empty_meets + not_our_team
     print(f"Filtering out {len(to_remove)} of {meet_count} meets.")
     print(f"\t{len(empty_meets)} meets are empty.")
@@ -217,6 +209,7 @@ def main(parser: argparse.ArgumentParser):
         team = urllib.parse.quote_plus(args.team)
     state = args.state
     years = range(2012, datetime.date.today().year) if not args.year else [args.year]
+    urls_only = args.print_urls_only
 
     team_ids = args.team_ids
     if not args.team_ids:
@@ -227,10 +220,15 @@ def main(parser: argparse.ArgumentParser):
     all_state_meets = fetch_meets(years=years)
 
     participated_meets = filter_meets_by_team_ids(all_state_meets, team_ids)
+    meet_urls = []
     for pm in participated_meets:
         pm["url"] = f"http://www.touchpadlive.com/{pm['id']}"
+        meet_urls.append(pm["url"])
     print(f"Found {len(participated_meets)} meets your team participated in:")
-    pp.pprint(participated_meets)
+    if urls_only:
+        [print(u) for u in meet_urls]
+    else:
+        pp.pprint(participated_meets)
     with open(f"{'_'.join([str(tid) for tid in team_ids])}_meets.json", "w") as meets_file:
         json.dump(participated_meets, meets_file)
 
@@ -243,9 +241,33 @@ if __name__ == "__main__":
     )
 
     team_args = parser.add_mutually_exclusive_group(required=True)
-    team_args.add_argument("-t", "--team")
-    team_args.add_argument("-i", "--team-ids", nargs="+")
-    parser.add_argument("-y", "--year", required=False)
-    parser.add_argument("-s", "--state", default=_DEFAULT_STATE)
+    team_args.add_argument(
+        "-t", "--team", help="Search by this identifying part of a team name, that may show up in a " "meet " "title"
+    )
+    team_args.add_argument(
+        "-i",
+        "--team-ids",
+        nargs="+",
+        help="Provide the integer team ID, or space-separated list of team IDs, you want to collect meets for, if you know it.",
+    )
+    parser.add_argument(
+        "-y",
+        "--year",
+        required=False,
+        help="Narrow down to a specific years. Will use all years " "2012+ if not provided.",
+    )
+    parser.add_argument(
+        "-s",
+        "--state",
+        default=_DEFAULT_STATE,
+        help=f"Search only for meets in this state. " f"{_DEFAULT_STATE} used by default. This is " f"required.",
+    )
+    parser.add_argument(
+        "-u",
+        "--print-urls-only",
+        action="store_true",
+        default=False,
+        help="Only list the Meet URL " "in the final results. " "Full JSON file is still " "saved to filesystem.",
+    )
 
     main(parser)
