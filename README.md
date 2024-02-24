@@ -20,7 +20,7 @@ This script can be used to import swim meet results from Team Unify to SwimTopia
 1. Open your meet
 1. Change the "Stroke" filter to one stroke, and "Search"
 1. Export to Excel (XLS)
-1. Repeat Search and Export for each stroke type, and save the file with the stroke name in lowercase at the end, e.g. `meet_free.xls`, `meet_back.xls`, ..., `meet_im.xls`. Save them alongside the `sd3_from_tu_meet_results.py` file
+1. Repeat Search and Export for each stroke type, and save the file with the stroke name in lowercase at the end (you can replace "meet" in the name with whatever meet you are downloading), e.g. `meet_free.xls`, `meet_back.xls`, ..., `meet_im.xls`. Save them alongside the `sd3_from_tu_meet_results.py` file
     - _The reason for this is that Team Unify only lets you download 400 results at a time, so you must filter to get less than that, so results aren't truncated._
     - ***Make sure each file has less than 400 results in it!***. Add more search filters if needed.
 1. Go on to the "Relays" tab of the meet, Search and Export as well into `meet_relay.xls`
