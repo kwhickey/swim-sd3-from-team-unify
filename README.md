@@ -12,7 +12,7 @@ This script can be used to import swim meet results from Team Unify to SwimTopia
 
 ### Quickstart
 
-1. (Download)[https://github.com/kwhickey/swim-sd3-from-team-unify/archive/refs/heads/main.zip] or clone (`git clone https://github.com/kwhickey/swim-sd3-from-team-unify.git`) this repo
+1. [Download](https://github.com/kwhickey/swim-sd3-from-team-unify/archive/refs/heads/main.zip) or clone (`git clone https://github.com/kwhickey/swim-sd3-from-team-unify.git`) this repo
 1. Edit the `swim_team_info.json` file to match your home team. Keeping carefule of quotes. 
 1. Log into your Team Unify site
 1. In your profile, go to "Back Office"
