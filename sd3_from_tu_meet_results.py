@@ -402,7 +402,11 @@ def format_individual_xls_dataframe(xls_path: pathlib.Path):
     xls_df = sort_event_results_dataframe(xls_df)
 
     xls_df[["name", "uss_number_new"]] = xls_df["Athlete Name"].str.split(pat="\n", expand=True)
+
     # Keep the newer 14-character "new" uss_number around for building the IndividualInfo D3 records
+    # But ensure it's at most 14 characters (some bad IDs in old meets)
+    xls_df["uss_number_new"] = xls_df["uss_number_new"].str.slice(start=0, stop=14)  # must truncate, can only fit 14
+
     xls_df["ussn"] = xls_df["uss_number_new"].str.slice(start=0, stop=12)  # must truncate, can only fit 12
     xls_df[["_birthdate_mmddyy"]] = xls_df["ussn"].str.extract(pat=r"([0-9]{6})")
     xls_df["birthdate"] = pd.to_datetime(xls_df["_birthdate_mmddyy"], format="%m%d%y").dt.date
@@ -410,11 +414,14 @@ def format_individual_xls_dataframe(xls_path: pathlib.Path):
         pat="\n", expand=True
     )
     xls_df["age_or_class"] = xls_df["swimmer_age_at_date_of_swim"]
-    xls_df[["last_name", "_first_and_middle_i"]] = xls_df["name"].str.split(pat=", ", expand=True)
-    xls_df[["first_name", "middle_initial"]] = xls_df["_first_and_middle_i"].str.split(expand=True)
+    xls_df[["last_name", "_first_and_middle_i"]] = xls_df["name"].str.rsplit(pat=", ", n=1, expand=True)
+    xls_df[["first_name", "middle_initial"]] = xls_df["_first_and_middle_i"].str.rsplit(n=1, expand=True)
 
-    # print(xls_df.groupby(["event_number", "event_sex_sort_val", "event_age", "stroke_sort_val", "event_distance"]).size())
-    # return
+    # If the USS Number is messed up and not containing a birthday, force it to Jan 1 of their birth year
+    xls_df["birthdate"] = xls_df.apply(
+        lambda x: datetime.date(x["date_of_swim"].year - int(x["age_or_class"]), 1, 1) if str(x["birthdate"]) == "NaT" else x["birthdate"],
+        axis="columns"
+    )
 
     xls_df.drop(
         [
