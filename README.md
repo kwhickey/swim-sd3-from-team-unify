@@ -27,7 +27,7 @@ This script can be used to import swim meet results from Team Unify to SwimTopia
 1. Open a shell in this directory
 1. `pip install sdif pandas openpyxl`
 1. `python3 sd3_from_tu_meet_results.py concat meet`, changing `meet` to whatever the base name of your saved XLS files is before the `_stroke.xls`
-1. `python3 sd3_from_tu_meet_results.py build meet_concat.xls meet_relay.xls` _(again replacying `meet` in the name with your meet's base name)_
+1. `python3 sd3_from_tu_meet_results.py build meet_concat.xls meet_relay.xls` _(again replacing `meet` in the name with your meet's base name)_
 
 Take the generated `.sd3` file and import it into a SwimTopia meet.
 
