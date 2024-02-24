@@ -33,8 +33,9 @@ Take the generated `.sd3` file and import it into a SwimTopia meet.
 
 #### _Tips_:
 
-- Best to have imported the Roster to SwimTopia, in the Season of this meet, before importing the meet
+- If you have a Roseter for the year (season) of the meet, best to have imported the Roster to SwimTopia, in the Season of this meet, before importing the meet. But if not, swimmers from the meet will be auto-added to that season/year's Roster when imported.
 - There's a bug in SwimTopia import such that auto-creating Events on import doesn't work. Create the standard 64 events manually, use a SwimTopia team or league template, or find a `.ev3` for uploading (like the [one in this repo](event_template_dual_64.ev3)).
+    - You can save the first events upload as a template if you want. If you're doing all-stars or divisionals and need to drop relays, just unlink from the template, and then edit by checking boxes and "Remove" those events.
 
 ## `fetch_touchpad_live_meets.py`
 
