@@ -12,20 +12,22 @@ This script can be used to import swim meet results from Team Unify to SwimTopia
 
 ### Quickstart
 
+1. (Download)[https://github.com/kwhickey/swim-sd3-from-team-unify/archive/refs/heads/main.zip] or clone (`git clone https://github.com/kwhickey/swim-sd3-from-team-unify.git`) this repo
+1. Edit the `swim_team_info.json` file to match your home team. Keeping carefule of quotes. 
 1. Log into your Team Unify site
-2. In your profile, go to "Back Office"
-3. Left-nav menu, choose Events & Competitions > Meet Results
-4. Open your meet
-5. Change the "Stroke" filter to one stroke, and "Search"
-6. Export to Excel (XLS)
-7. Repeat Search and Export for each stroke type, and save the file with the stroke name in lowercase at the end, e.g. `meet_free.xls`, `meet_back.xls`, ..., `meet_im.xls`. Save them alongside the `sd3_from_tu_meet_results.py` file
+1. In your profile, go to "Back Office"
+1. Left-nav menu, choose Events & Competitions > Meet Results
+1. Open your meet
+1. Change the "Stroke" filter to one stroke, and "Search"
+1. Export to Excel (XLS)
+1. Repeat Search and Export for each stroke type, and save the file with the stroke name in lowercase at the end, e.g. `meet_free.xls`, `meet_back.xls`, ..., `meet_im.xls`. Save them alongside the `sd3_from_tu_meet_results.py` file
     - _The reason for this is that Team Unify only lets you download 400 results at a time, so you must filter to get less than that, so results aren't truncated._
     - ***Make sure each file has less than 400 results in it!***. Add more search filters if needed.
-8. Go on to the "Relays" tab of the meet, Search and Export as well into `meet_relay.xls`
-8. Open a shell in this directory
-9. `pip install sdif pandas openpyxl`
-10. `python3 sd3_from_tu_meet_results.py concat meet`, changing `meet` to whatever the base name of your saved XLS files is before the `_stroke.xls`
-12. `python3 sd3_from_tu_meet_results.py build meet_concat.xls meet_relay.xls`
+1. Go on to the "Relays" tab of the meet, Search and Export as well into `meet_relay.xls`
+1. Open a shell in this directory
+1. `pip install sdif pandas openpyxl`
+1. `python3 sd3_from_tu_meet_results.py concat meet`, changing `meet` to whatever the base name of your saved XLS files is before the `_stroke.xls`
+1. `python3 sd3_from_tu_meet_results.py build meet_concat.xls meet_relay.xls`
 
 Take the generated `.sd3` file and import it into a SwimTopia meet.
 
