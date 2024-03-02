@@ -146,6 +146,8 @@ def transform_event_age(event_age_raw: str):
 
 
 def transform_swim_time(swim_time_raw: str) -> TimeT:
+    if swim_time_raw is None or swim_time_raw.strip() == "":
+        return TimeCode.no_swim
     tc_match = [tc.name for tc in TimeCode if tc.value == swim_time_raw]
     if tc_match:
         return TimeCode[tc_match[0]]
@@ -891,10 +893,11 @@ def build_sd3(individual_xls: pathlib.Path, relay_xls: pathlib.Path = None):
     sd3_records.append(z0)
 
     # Build the .sd3 file in the same directory
+    sd3_file_name = f"{base_name}.sd3"
     with open(f"{base_name}.sd3", "w") as f:
         f.write(sdif.records.encode_records(sd3_records))
-        return
 
+    print(f"Built SDIF file: {sd3_file_name}")
 
 def generate_individual_records(team_code_tu: str, xls_indiv_df: pd.DataFrame):
     """Generate D0 IndividualEvent and singular D3 IndividualInfo records in the order required by SDIF files for the given team
