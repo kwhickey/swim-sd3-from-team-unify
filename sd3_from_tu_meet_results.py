@@ -408,22 +408,29 @@ def format_individual_xls_dataframe(xls_path: pathlib.Path):
     # Keep the newer 14-character "new" uss_number around for building the IndividualInfo D3 records
     # But ensure it's at most 14 characters (some bad IDs in old meets)
     xls_df["uss_number_new"] = xls_df["uss_number_new"].str.slice(start=0, stop=14)  # must truncate, can only fit 14
-
     xls_df["ussn"] = xls_df["uss_number_new"].str.slice(start=0, stop=12)  # must truncate, can only fit 12
-    xls_df[["_birthdate_mmddyy"]] = xls_df["ussn"].str.extract(pat=r"([0-9]{6})")
-    xls_df["birthdate"] = pd.to_datetime(xls_df["_birthdate_mmddyy"], format="%m%d%y").dt.date
+
+    # Get their age
     xls_df[["swimmer_age_at_date_of_swim", "swimmer_age_now"]] = xls_df["EventAge\nCurrent"].str.split(
         pat="\n", expand=True
     )
     xls_df["age_or_class"] = xls_df["swimmer_age_at_date_of_swim"]
-    xls_df[["last_name", "_first_and_middle_i"]] = xls_df["name"].str.rsplit(pat=", ", n=1, expand=True)
-    xls_df[["first_name", "middle_initial"]] = xls_df["_first_and_middle_i"].str.rsplit(n=1, expand=True)
+    
+    # Only derive a mmddyy birthday if you find six consecutive digits, fitting a birthday format, from the start of the USS#
+    mdy_regex = r"^(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])(\d\d)"
+    bday_df =xls_df["ussn"].str.extract(pat=mdy_regex, expand=False)
+    xls_df["_birthdate_mmddyy"] = bday_df[0] + bday_df[1] + bday_df[2]  # concat mm + dd + yy from the regex extraction
 
     # If the USS Number is messed up and not containing a birthday, force it to Jan 1 of their birth year
-    xls_df["birthdate"] = xls_df.apply(
-        lambda x: datetime.date(x["date_of_swim"].year - int(x["age_or_class"]), 1, 1) if str(x["birthdate"]) == "NaT" else x["birthdate"],
+    xls_df["_birthdate_mmddyy"] = xls_df.apply(
+        lambda x: datetime.date(x["date_of_swim"].year - int(x["age_or_class"]), 1, 1).strftime("%m%d%y") if pd.isna(x["_birthdate_mmddyy"]) else x["_birthdate_mmddyy"],
         axis="columns"
     )
+
+    xls_df["birthdate"] = pd.to_datetime(xls_df["_birthdate_mmddyy"], format="%m%d%y").dt.date
+
+    xls_df[["last_name", "_first_and_middle_i"]] = xls_df["name"].str.rsplit(pat=", ", n=1, expand=True)
+    xls_df[["first_name", "middle_initial"]] = xls_df["_first_and_middle_i"].str.rsplit(n=1, expand=True)
 
     xls_df.drop(
         [
