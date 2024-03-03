@@ -25,6 +25,7 @@ import pathlib
 import pprint as pp
 import pandas as pd
 import numpy as np
+import warnings
 
 from openpyxl.styles import Alignment
 from decimal import Decimal
@@ -196,7 +197,10 @@ def format_event_results_xls_dataframe(xls_path: pathlib.Path):
     # - flight_status: Optional[str] = spec(145, 1)
     # - centipoints_scored_finals: Optional[int] = spec(151, 2)
 
-    xls_df = pd.read_excel(xls_path, engine="openpyxl")
+    xls_df = None
+    with warnings.catch_warnings():  # suppress annoying openpyxl warnings about workbook style
+        warnings.simplefilter("ignore")
+        xls_df = pd.read_excel(xls_path, engine="openpyxl")
     xls_df = xls_df.replace({np.nan: None})
     xls_df["organization"] = sdif.models.OrganizationCode.uss
     xls_df["attached"] = sdif.models.AttachCode.attached
@@ -249,7 +253,7 @@ def format_event_results_xls_dataframe(xls_path: pathlib.Path):
     xls_df["finals_time_course"] = FINALS_COURSE
 
     date_field = "Date of\nSport" if "Date of\nSport" in xls_df.columns else "Date"
-    xls_df["date_of_swim"] = pd.to_datetime(xls_df[date_field]).dt.date
+    xls_df["date_of_swim"] = pd.to_datetime(xls_df[date_field], format="%m/%d/%y").dt.date
     xls_df[["lsc", "team_code_tu"]] = xls_df["LSC-Team"].str.split(pat="-", expand=True)
     xls_df["team_code4"] = xls_df["team_code_tu"].str[:4]
     xls_df["team_code5"] = xls_df["team_code_tu"].str[4:]
@@ -417,7 +421,7 @@ def format_individual_xls_dataframe(xls_path: pathlib.Path):
     )
     
     # Need to use this value for now, but rectify it based on age-up-date and birthday after birthday is derived
-    xls_df["age_or_class"] = xls_df["swimmer_age_at_date_of_swim"]  
+    xls_df["age_or_class"] = pd.to_numeric(xls_df["swimmer_age_at_date_of_swim"])
     
     # Only derive a mmddyy birthday if you find six consecutive digits, fitting a birthday format, from the start of the USS#
     mdy_regex = r"^(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])(\d\d)"
@@ -435,7 +439,7 @@ def format_individual_xls_dataframe(xls_path: pathlib.Path):
     # Set age_or_class to the effective age for the season given the age-up date
     age_up_date = datetime.datetime(xls_df["date_of_swim"].max().year, SEASON_AGE_UP_MONTH, SEASON_AGE_UP_DAY)
     xls_df["age_or_class"] = xls_df.apply(
-        lambda x: age_up_date.year - x["birthdate"].year - ((age_up_date.month, age_up_date.day) < (x["birthdate"].month,  x["birthdate"].day)),
+        lambda x: str(age_up_date.year - x["birthdate"].year - ((age_up_date.month, age_up_date.day) < (x["birthdate"].month,  x["birthdate"].day))).rsplit(".")[:1][0],
         axis="columns"
     )
 
@@ -616,7 +620,9 @@ def format_swimmers_dataframe(xls_indiv_df: pd.DataFrame):
             "sex",
         ]
     ].copy()
-    swimmer_df.drop_duplicates(inplace=True, ignore_index=True)
+
+    # Must exclude the LSC when doing duplicates. Finding some meets have the same team (and swimmers) and reuslts twice, with different LSCs
+    swimmer_df.drop_duplicates(inplace=True, ignore_index=True, subset=swimmer_df.columns.difference(["lsc"]))
     swimmer_df.reset_index()
     return swimmer_df
 
@@ -1051,7 +1057,10 @@ def concat_xls(base_name: str):
         print(f"No files found to combine given base path {base_name}")
         return
 
-    concat_df = pd.concat((pd.read_excel(f, engine="openpyxl") for f in files if f.exists()), ignore_index=True)
+    concat_df = None
+    with warnings.catch_warnings():  # suppress annoying openpyxl warnings about workbook style
+        warnings.simplefilter("ignore")
+        concat_df = pd.concat((pd.read_excel(f, engine="openpyxl") for f in files if f.exists()), ignore_index=True)
     concat_path = pathlib.Path(f"{base_name}_concat.xls")
     with pd.ExcelWriter(concat_path, engine="openpyxl") as writer:  # defaults to openpyxl when writing .xls extension
         # Have to get into the guts of the writer to apply wrap style, so that newlines from the downloaded .xls
