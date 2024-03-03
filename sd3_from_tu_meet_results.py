@@ -73,6 +73,8 @@ SWIM_TEAM_INFO = _get_swim_team_info()
 
 FINALS_COURSE = sdif.models.CourseStatusCode.short_meters_hytek_nonstandard  # 'S'
 IS_SUMMER_LEAGUE = True
+SEASON_AGE_UP_MONTH = 6
+SEASON_AGE_UP_DAY = 15
 
 
 @model(frozen=True, kw_only=True)
@@ -410,11 +412,12 @@ def format_individual_xls_dataframe(xls_path: pathlib.Path):
     xls_df["uss_number_new"] = xls_df["uss_number_new"].str.slice(start=0, stop=14)  # must truncate, can only fit 14
     xls_df["ussn"] = xls_df["uss_number_new"].str.slice(start=0, stop=12)  # must truncate, can only fit 12
 
-    # Get their age
     xls_df[["swimmer_age_at_date_of_swim", "swimmer_age_now"]] = xls_df["EventAge\nCurrent"].str.split(
         pat="\n", expand=True
     )
-    xls_df["age_or_class"] = xls_df["swimmer_age_at_date_of_swim"]
+    
+    # Need to use this value for now, but rectify it based on age-up-date and birthday after birthday is derived
+    xls_df["age_or_class"] = xls_df["swimmer_age_at_date_of_swim"]  
     
     # Only derive a mmddyy birthday if you find six consecutive digits, fitting a birthday format, from the start of the USS#
     mdy_regex = r"^(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])(\d\d)"
@@ -428,6 +431,13 @@ def format_individual_xls_dataframe(xls_path: pathlib.Path):
     )
 
     xls_df["birthdate"] = pd.to_datetime(xls_df["_birthdate_mmddyy"], format="%m%d%y").dt.date
+
+    # Set age_or_class to the effective age for the season given the age-up date
+    age_up_date = datetime.datetime(xls_df["date_of_swim"].max().year, SEASON_AGE_UP_MONTH, SEASON_AGE_UP_DAY)
+    xls_df["age_or_class"] = xls_df.apply(
+        lambda x: age_up_date.year - x["birthdate"].year - ((age_up_date.month, age_up_date.day) < (x["birthdate"].month,  x["birthdate"].day)),
+        axis="columns"
+    )
 
     xls_df[["last_name", "_first_and_middle_i"]] = xls_df["name"].str.rsplit(pat=", ", n=1, expand=True)
     xls_df[["first_name", "middle_initial"]] = xls_df["_first_and_middle_i"].str.rsplit(n=1, expand=True)
