@@ -419,19 +419,23 @@ def format_individual_xls_dataframe(xls_path: pathlib.Path):
     xls_df[["swimmer_age_at_date_of_swim", "swimmer_age_now"]] = xls_df["EventAge\nCurrent"].str.split(
         pat="\n", expand=True
     )
-    
+
     # Need to use this value for now, but rectify it based on age-up-date and birthday after birthday is derived
     xls_df["age_or_class"] = pd.to_numeric(xls_df["swimmer_age_at_date_of_swim"])
-    
+
     # Only derive a mmddyy birthday if you find six consecutive digits, fitting a birthday format, from the start of the USS#
     mdy_regex = r"^(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])(\d\d)"
-    bday_df =xls_df["ussn"].str.extract(pat=mdy_regex, expand=False)
+    bday_df = xls_df["ussn"].str.extract(pat=mdy_regex, expand=False)
     xls_df["_birthdate_mmddyy"] = bday_df[0] + bday_df[1] + bday_df[2]  # concat mm + dd + yy from the regex extraction
 
     # If the USS Number is messed up and not containing a birthday, force it to Jan 1 of their birth year
     xls_df["_birthdate_mmddyy"] = xls_df.apply(
-        lambda x: datetime.date(x["date_of_swim"].year - int(x["age_or_class"]), 1, 1).strftime("%m%d%y") if pd.isna(x["_birthdate_mmddyy"]) else x["_birthdate_mmddyy"],
-        axis="columns"
+        lambda x: (
+            datetime.date(x["date_of_swim"].year - int(x["age_or_class"]), 1, 1).strftime("%m%d%y")
+            if pd.isna(x["_birthdate_mmddyy"])
+            else x["_birthdate_mmddyy"]
+        ),
+        axis="columns",
     )
 
     xls_df["birthdate"] = pd.to_datetime(xls_df["_birthdate_mmddyy"], format="%m%d%y").dt.date
@@ -439,8 +443,12 @@ def format_individual_xls_dataframe(xls_path: pathlib.Path):
     # Set age_or_class to the effective age for the season given the age-up date
     age_up_date = datetime.datetime(xls_df["date_of_swim"].max().year, SEASON_AGE_UP_MONTH, SEASON_AGE_UP_DAY)
     xls_df["age_or_class"] = xls_df.apply(
-        lambda x: str(age_up_date.year - x["birthdate"].year - ((age_up_date.month, age_up_date.day) < (x["birthdate"].month,  x["birthdate"].day))).rsplit(".")[:1][0],
-        axis="columns"
+        lambda x: str(
+            age_up_date.year
+            - x["birthdate"].year
+            - ((age_up_date.month, age_up_date.day) < (x["birthdate"].month, x["birthdate"].day))
+        ).rsplit(".")[:1][0],
+        axis="columns",
     )
 
     xls_df[["last_name", "_first_and_middle_i"]] = xls_df["name"].str.rsplit(pat=", ", n=1, expand=True)
@@ -921,6 +929,7 @@ def build_sd3(individual_xls: pathlib.Path, relay_xls: pathlib.Path = None):
         f.write(sdif.records.encode_records(sd3_records))
 
     print(f"Built SDIF file: {sd3_file_name}")
+
 
 def generate_individual_records(team_code_tu: str, xls_indiv_df: pd.DataFrame):
     """Generate D0 IndividualEvent and singular D3 IndividualInfo records in the order required by SDIF files for the given team
